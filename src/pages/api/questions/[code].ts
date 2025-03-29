@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import prisma from '@/lib/prisma';
-import { findVerificationCode } from '@/lib/prisma-fix';
+import { mockSessions, mockQuestions } from '@/data/mockData';
 
 interface QuestionResponse {
   id: string;
@@ -29,40 +28,33 @@ export default async function handler(
 
     console.log('Searching for verification code:', code);
     
-    // Use the safe helper function to find the verification code
-    const verificationCode = await findVerificationCode(code, true, true);
+    // Find session with matching verification code
+    const session = mockSessions.find(s => 
+      s.verificationCode && s.verificationCode.toUpperCase() === code.toUpperCase()
+    );
 
-    if (!verificationCode || !verificationCode.session) {
+    if (!session) {
+      console.log('No session found with verification code:', code);
       return res.status(404).json({ message: 'Invalid verification code' });
     }
 
-    const session = verificationCode.session;
     console.log('Found session:', session.id);
 
     // Check if the session is completed
-    if (session.status === 'COMPLETED') {
+    if (session.status === 'completed') {
       return res.status(400).json({ message: 'This session has been completed' });
     }
 
     // Get questions for this session
-    const questions = await prisma.question.findMany({
-      where: {
-        sessionId: session.id
-      },
-      include: {
-        answer: true
-      }
-    });
-
+    const questions = mockQuestions.filter(q => q.sessionId === session.id);
     console.log('Found questions:', questions.length);
 
     const formattedQuestions: QuestionResponse[] = questions.map(q => ({
       id: q.id,
       text: q.text,
-      answer: q.answer ? {
-        id: q.answer.id,
-        videoUrl: q.answer.videoUrl || undefined,
-        textAnswer: q.answer.textAnswer || undefined
+      answer: q.answered ? {
+        id: `answer-${q.id}`,
+        textAnswer: 'Sample answer' // In a real app, this would come from the database
       } : null
     }));
 
