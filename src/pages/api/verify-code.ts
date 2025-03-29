@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import prisma from '@/lib/prisma';
-import { findVerificationCode, markVerificationCodeAsUsed, updateSessionStatus } from '@/lib/prisma-fix';
+import { mockData } from '@/data/mockData';
 
 export default async function verifyCodeHandler(
   req: NextApiRequest,
@@ -19,40 +18,28 @@ export default async function verifyCodeHandler(
   try {
     console.log('Searching for verification code:', code);
     
-    // Use the safe helper function instead of direct Prisma query
-    const verificationCode = await findVerificationCode(code, true, true);
-    
-    console.log('Found verification code:', verificationCode ? verificationCode.id : 'none');
+    // Find session with matching verification code
+    const session = mockData.sessions.find(s => 
+      s.verificationCode && s.verificationCode.toUpperCase() === code.toUpperCase()
+    );
 
-    if (!verificationCode || !verificationCode.session) {
+    if (!session) {
       return res.status(400).json({ error: 'Invalid verification code' });
     }
 
-    const session = verificationCode.session;
     console.log('Found session:', session.id);
 
     // Check if session is already completed
-    if (session.status === 'COMPLETED') {
+    if (session.status === 'completed') {
       return res.status(400).json({ error: 'This session has been completed' });
     }
 
     // Get questions for the session
-    const questions = await prisma.question.findMany({
-      where: { 
-        sessionId: session.id,
-        answer: null // Only get unanswered questions
-      }
-    });
+    const questions = mockData.questions.filter(q => 
+      q.sessionId === session.id && !q.answered
+    );
     
     console.log('Found questions:', questions.length);
-
-    // Update the verification code to mark it as used
-    await markVerificationCodeAsUsed(verificationCode.id);
-
-    // Update the session status to IN_PROGRESS if it's still PENDING
-    if (session.status === 'PENDING') {
-      await updateSessionStatus(session.id, 'IN_PROGRESS');
-    }
 
     // Return session and questions
     return res.status(200).json({ 
