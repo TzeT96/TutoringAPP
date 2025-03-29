@@ -37,57 +37,29 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Missing credentials');
         }
 
-        // Hard-coded admin credentials for development
-        if (process.env.NODE_ENV === 'development') {
-          // Admin: admin@example.com / admin123
-          if (credentials.email === 'admin@example.com' && credentials.password === 'admin123') {
-            return {
-              id: 'admin-id',
-              email: 'admin@example.com',
-              name: 'Admin User',
-              role: 'admin',
-            };
-          }
-          
-          // Student: student@example.com / student123
-          if (credentials.email === 'student@example.com' && credentials.password === 'student123') {
-            return {
-              id: 'student-id',
-              email: 'student@example.com',
-              name: 'Student User',
-              role: 'student',
-            };
-          }
-        }
-
-        // Regular database authentication for non-development or when hard-coded credentials don't match
-        try {
-          const user = await prisma.user.findUnique({
-            where: {
-              email: credentials.email,
-            },
-          });
-
-          if (!user) {
-            throw new Error('No user found');
-          }
-
-          const isValid = await bcrypt.compare(credentials.password, user.password);
-
-          if (!isValid) {
-            throw new Error('Invalid password');
-          }
-
+        // Hard-coded admin credentials for both development and production
+        // Admin: admin@example.com / admin123
+        if (credentials.email === 'admin@example.com' && credentials.password === 'admin123') {
           return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
+            id: 'admin-id',
+            email: 'admin@example.com',
+            name: 'Admin User',
+            role: 'admin',
           };
-        } catch (error) {
-          console.error('Authentication error:', error);
-          return null;
         }
+        
+        // Student: student@example.com / student123
+        if (credentials.email === 'student@example.com' && credentials.password === 'student123') {
+          return {
+            id: 'student-id',
+            email: 'student@example.com',
+            name: 'Student User',
+            role: 'student',
+          };
+        }
+
+        // If no hardcoded credentials match, return null
+        return null;
       },
     }),
   ],
