@@ -11,6 +11,7 @@ export interface ExtendedCourse {
   averageGrade?: number;
   assignments: ExtendedAssignment[];
   students: Student[];
+  teacherId?: string;
 }
 
 export interface ExtendedAssignment {
@@ -67,7 +68,7 @@ export async function getTeacher(teacherId: string): Promise<Teacher | null> {
   }
 }
 
-export async function getTeacherCourses(): Promise<ExtendedCourse[]> {
+export async function getTeacherCourses(teacherId?: string): Promise<ExtendedCourse[]> {
   try {
     const response = await fetch('/api/courses');
     if (!response.ok) {

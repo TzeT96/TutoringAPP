@@ -1,33 +1,37 @@
 import prisma from './prisma';
 
-export async function createSession(codeId: number) {
-  return await prisma.session.create({
+export async function createSession(code: string, userId: string) {
+  return await prisma.tutoringSession.create({
     data: {
-      codeId,
+      code,
+      userId,
+      status: 'PENDING'
     }
   });
 }
 
-export async function updateSession(sessionId: number, videoUrl: string) {
-  return await prisma.session.update({
+export async function updateSession(sessionId: string, status: string) {
+  return await prisma.tutoringSession.update({
     where: { id: sessionId },
     data: {
-      completedAt: new Date(),
-      videoUrl
+      status,
+      startedAt: new Date()
     }
   });
 }
 
 export async function submitAnswer(
-  sessionId: number,
-  questionId: number,
-  videoUrl: string
+  sessionId: string,
+  questionId: string,
+  videoUrl?: string,
+  textAnswer?: string
 ) {
   return await prisma.answer.create({
     data: {
       sessionId,
       questionId,
-      videoUrl
+      videoUrl,
+      textAnswer
     }
   });
 } 
