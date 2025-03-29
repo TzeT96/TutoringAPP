@@ -4,13 +4,6 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clear existing data
-  await prisma.studentResult.deleteMany();
-  await prisma.studentCourse.deleteMany();
-  await prisma.assignment.deleteMany();
-  await prisma.course.deleteMany();
-  await prisma.student.deleteMany();
-  
   // Create admin user if it doesn't exist
   const adminExists = await prisma.user.findUnique({
     where: { email: 'admin@example.com' },
@@ -25,6 +18,9 @@ async function main() {
         role: 'admin',
       },
     });
+    console.log('Admin user created successfully');
+  } else {
+    console.log('Admin user already exists');
   }
 
   // Create teacher user
