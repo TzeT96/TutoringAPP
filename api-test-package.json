@@ -1,0 +1,12 @@
+{
+  "name": "tutoring-api-tests",
+  "version": "1.0.0",
+  "description": "API tests for the tutoring web application",
+  "main": "run-api-tests.js",
+  "scripts": {
+    "test": "node run-api-tests.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+} 

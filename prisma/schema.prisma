@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model VerificationCode {
+  id        String          @id @default(cuid())
+  code      String         @unique
+  createdAt DateTime        @default(now())
+  expiresAt DateTime
+  isUsed    Boolean         @default(false)
+  session   TutoringSession? @relation(fields: [sessionId], references: [id])
+  sessionId String?
+  questions Question[]
+}
+
+model Question {
+  id                String           @id @default(cuid())
+  text             String
+  verificationCode  VerificationCode @relation(fields: [verificationCodeId], references: [id])
+  verificationCodeId String
+  answer           Answer?
+  sessionId        String?          // Make it optional initially
+  session          TutoringSession? @relation(fields: [sessionId], references: [id])  // Make relation optional
+}
+
+model Answer {
+  id         String          @id @default(cuid())
+  session    TutoringSession @relation(fields: [sessionId], references: [id])
+  sessionId  String
+  question   Question        @relation(fields: [questionId], references: [id])
+  questionId String          @unique
+  videoUrl   String?
+  textAnswer String?
+  submittedAt DateTime       @default(now())
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String         @unique
+  name          String?
+  password      String
+  role          String         @default("user")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tutoringSessions TutoringSession[]
+  authSessions  AuthSession[]
+  // New relations for admin dashboard
+  teacherCourses Course[]      // Courses taught by this user if they are a teacher
+}
+
+model AuthSession {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TutoringSession {
+  id                String            @id @default(cuid())
+  code              String            @unique
+  createdAt         DateTime          @default(now())
+  status            String            @default("PENDING")
+  startedAt         DateTime          @default(now())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verificationCodes VerificationCode[]
+  questions         Question[]
+  answers           Answer[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// New models for admin dashboard
+
+model Course {
+  id            String        @id @default(cuid())
+  name          String
+  code          String
+  semester      String
+  studentCount  Int           @default(0)
+  averageGrade  Float?
+  teacherId     String
+  teacher       User          @relation(fields: [teacherId], references: [id])
+  assignments   Assignment[]
+  students      StudentCourse[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Assignment {
+  id            String        @id @default(cuid())
+  title         String
+  type          String        // 'assignment', 'quiz', 'exam'
+  dueDate       DateTime
+  totalPoints   Int
+  courseId      String
+  course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentResults StudentResult[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Student {
+  id            String        @id @default(cuid())
+  name          String
+  email         String        @unique
+  courses       StudentCourse[]
+  results       StudentResult[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model StudentCourse {
+  id            String        @id @default(cuid())
+  studentId     String
+  student       Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId      String
+  course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([studentId, courseId])
+}
+
+model StudentResult {
+  id               String      @id @default(cuid())
+  studentId        String
+  student          Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignmentId     String
+  assignment       Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  score            Float
+  submissionDate   DateTime
+  plagiarismStatus String      @default("cleared") // 'cleared', 'suspected', 'confirmed'
+  similarityScore  Int         // percentage
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([studentId, assignmentId])
+}
+
+model SubmissionDetail {
+  id                         Int      @id @default(autoincrement())
+  submission_detection_result Json
+  submission_time            DateTime
+  assignment_id             Int
+  assignment                AssignmentGeneralInfo @relation(fields: [assignment_id], references: [id])
+
+  @@map("submission_detail_table")
+}
+
+model AssignmentGeneralInfo {
+  id              Int      @id @default(autoincrement())
+  assignment_type String   @db.VarChar(45)
+  due_date        DateTime
+  school          String   @db.VarChar(255)
+  course_code     String   @db.VarChar(50)
+  assignment_name String   @db.VarChar(255)
+  assignment_url  String   @db.Text
+  submissions     SubmissionDetail[]
+
+  @@map("assignment_general_info_table")
+}
+
+model Sample {
+  id                         Int      @id @default(autoincrement())
+  school                     String   @db.VarChar(255)
+  course_code               String   @db.VarChar(50)
+  assignment_name           String   @db.VarChar(255)
+  assignment_url            String   @db.VarChar(255)
+  submission_detection_result Json
+  created_at                DateTime
+
+  @@map("sample_table")
+} 

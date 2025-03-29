@@ -1,0 +1,22 @@
+"use strict";
+/*
+ * ATTENTION: An "eval-source-map" devtool has been used.
+ * This devtool is neither made for production nor for readable output files.
+ * It uses "eval()" calls to create a separate source file with attached SourceMaps in the browser devtools.
+ * If you are trying to read the output file, select a different devtool (https://webpack.js.org/configuration/devtool/)
+ * or disable the default devtool with "devtool: false".
+ * If you are looking for production-ready output files, see mode: "production" (https://webpack.js.org/configuration/mode/).
+ */
+self["webpackHotUpdate_N_E"]("src/middleware",{
+
+/***/ "(middleware)/./src/middleware.ts":
+/*!***************************!*\
+  !*** ./src/middleware.ts ***!
+  \***************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   config: () => (/* binding */ config),\n/* harmony export */   \"default\": () => (__WEBPACK_DEFAULT_EXPORT__)\n/* harmony export */ });\n/* harmony import */ var next_auth_middleware__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! next-auth/middleware */ \"(middleware)/./node_modules/next-auth/middleware.js\");\n/* harmony import */ var next_auth_middleware__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(next_auth_middleware__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var next_dist_server_web_exports_next_response__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! next/dist/server/web/exports/next-response */ \"(middleware)/./node_modules/next/dist/esm/server/web/exports/next-response.js\");\n\n\n/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ((0,next_auth_middleware__WEBPACK_IMPORTED_MODULE_0__.withAuth)(function middleware(req) {\n    const token = req.nextauth.token;\n    const isAdmin = token?.role === \"admin\";\n    const isAdminRoute = req.nextUrl.pathname.startsWith(\"/admin\");\n    if (isAdminRoute && !isAdmin) {\n        return next_dist_server_web_exports_next_response__WEBPACK_IMPORTED_MODULE_1__[\"default\"].redirect(new URL(\"/auth/signin\", req.url));\n    }\n    return next_dist_server_web_exports_next_response__WEBPACK_IMPORTED_MODULE_1__[\"default\"].next();\n}, {\n    callbacks: {\n        authorized: ({ token })=>!!token\n    }\n}));\nconst config = {\n    matcher: [\n        \"/admin/:path*\"\n    ]\n};\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKG1pZGRsZXdhcmUpLy4vc3JjL21pZGRsZXdhcmUudHMiLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7QUFBZ0Q7QUFDTDtBQUUzQyxpRUFBZUEsOERBQVFBLENBQ3JCLFNBQVNFLFdBQVdDLEdBQUc7SUFDckIsTUFBTUMsUUFBUUQsSUFBSUUsUUFBUSxDQUFDRCxLQUFLO0lBQ2hDLE1BQU1FLFVBQVVGLE9BQU9HLFNBQVM7SUFDaEMsTUFBTUMsZUFBZUwsSUFBSU0sT0FBTyxDQUFDQyxRQUFRLENBQUNDLFVBQVUsQ0FBQztJQUVyRCxJQUFJSCxnQkFBZ0IsQ0FBQ0YsU0FBUztRQUM1QixPQUFPTCwyRkFBcUIsQ0FBQyxJQUFJWSxJQUFJLGdCQUFnQlYsSUFBSVcsR0FBRztJQUM5RDtJQUVBLE9BQU9iLHVGQUFpQjtBQUMxQixHQUNBO0lBQ0VlLFdBQVc7UUFDVEMsWUFBWSxDQUFDLEVBQUViLEtBQUssRUFBRSxHQUFLLENBQUMsQ0FBQ0E7SUFDL0I7QUFDRixJQUNBO0FBRUssTUFBTWMsU0FBUztJQUNwQkMsU0FBUztRQUFDO0tBQWdCO0FBQzVCLEVBQUUiLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly9fTl9FLy4vc3JjL21pZGRsZXdhcmUudHM/ZDE5OSJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB3aXRoQXV0aCB9IGZyb20gJ25leHQtYXV0aC9taWRkbGV3YXJlJztcbmltcG9ydCB7IE5leHRSZXNwb25zZSB9IGZyb20gJ25leHQvc2VydmVyJztcblxuZXhwb3J0IGRlZmF1bHQgd2l0aEF1dGgoXG4gIGZ1bmN0aW9uIG1pZGRsZXdhcmUocmVxKSB7XG4gICAgY29uc3QgdG9rZW4gPSByZXEubmV4dGF1dGgudG9rZW47XG4gICAgY29uc3QgaXNBZG1pbiA9IHRva2VuPy5yb2xlID09PSAnYWRtaW4nO1xuICAgIGNvbnN0IGlzQWRtaW5Sb3V0ZSA9IHJlcS5uZXh0VXJsLnBhdGhuYW1lLnN0YXJ0c1dpdGgoJy9hZG1pbicpO1xuXG4gICAgaWYgKGlzQWRtaW5Sb3V0ZSAmJiAhaXNBZG1pbikge1xuICAgICAgcmV0dXJuIE5leHRSZXNwb25zZS5yZWRpcmVjdChuZXcgVVJMKCcvYXV0aC9zaWduaW4nLCByZXEudXJsKSk7XG4gICAgfVxuXG4gICAgcmV0dXJuIE5leHRSZXNwb25zZS5uZXh0KCk7XG4gIH0sXG4gIHtcbiAgICBjYWxsYmFja3M6IHtcbiAgICAgIGF1dGhvcml6ZWQ6ICh7IHRva2VuIH0pID0+ICEhdG9rZW4sXG4gICAgfSxcbiAgfVxuKTtcblxuZXhwb3J0IGNvbnN0IGNvbmZpZyA9IHtcbiAgbWF0Y2hlcjogWycvYWRtaW4vOnBhdGgqJ10sXG59OyAiXSwibmFtZXMiOlsid2l0aEF1dGgiLCJOZXh0UmVzcG9uc2UiLCJtaWRkbGV3YXJlIiwicmVxIiwidG9rZW4iLCJuZXh0YXV0aCIsImlzQWRtaW4iLCJyb2xlIiwiaXNBZG1pblJvdXRlIiwibmV4dFVybCIsInBhdGhuYW1lIiwic3RhcnRzV2l0aCIsInJlZGlyZWN0IiwiVVJMIiwidXJsIiwibmV4dCIsImNhbGxiYWNrcyIsImF1dGhvcml6ZWQiLCJjb25maWciLCJtYXRjaGVyIl0sInNvdXJjZVJvb3QiOiIifQ==\n//# sourceURL=webpack-internal:///(middleware)/./src/middleware.ts\n");
+
+/***/ })
+
+});
