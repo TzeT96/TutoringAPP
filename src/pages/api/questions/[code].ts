@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPool } from 'mysql2/promise';
+import { getConnection } from '@/lib/db';
 import { mockSessions, mockQuestions } from '@/data/mockData';
 
 // Define Student interface to match expected structure
@@ -8,15 +8,6 @@ interface Student {
   name: string;
   questions: string[];
 }
-
-// Create a connection pool to the MySQL database
-const pool = createPool({
-  host: process.env.DB_HOST || 'mysql-38ed915f-gasxchenzhuo-1826.j.aivencloud.com',
-  port: Number(process.env.DB_PORT || 19674),
-  user: process.env.DB_USER || 'avnadmin',
-  password: process.env.DB_PASSWORD || 'AVNS_uK1vNg5bd-vj8C280MG',
-  database: process.env.DB_NAME || 'defaultdb',
-});
 
 export default async function handler(
   req: NextApiRequest,
@@ -36,7 +27,7 @@ export default async function handler(
 
   try {
     // Connect to the database
-    const conn = await pool.getConnection();
+    const conn = await getConnection();
     console.log('Connected to database to verify code:', code);
     
     try {

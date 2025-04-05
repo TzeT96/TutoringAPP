@@ -1,15 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { Session, Student, StudentQuestions } from '@/data/mockData';
-import { createPool } from 'mysql2/promise';
-
-// Create a connection pool to the MySQL database
-const pool = createPool({
-  host: process.env.DB_HOST || 'mysql-38ed915f-gasxchenzhuo-1826.j.aivencloud.com',
-  port: Number(process.env.DB_PORT || 19674),
-  user: process.env.DB_USER || 'avnadmin',
-  password: process.env.DB_PASSWORD || 'AVNS_uK1vNg5bd-vj8C280MG',
-  database: process.env.DB_NAME || 'defaultdb',
-});
+import { getConnection } from '@/lib/db';
 
 export default async function handler(
   req: NextApiRequest,
@@ -29,7 +20,7 @@ export default async function handler(
 
   try {
     // Connect to the database
-    const conn = await pool.getConnection();
+    const conn = await getConnection();
     console.log('Connected to database');
     
     try {

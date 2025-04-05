@@ -1,15 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPool } from 'mysql2/promise';
 import { uploadToS3 } from '@/lib/s3';
-
-// Create connection pool
-const pool = createPool({
-  host: process.env.DB_HOST || 'mysql-38ed915f-gasxchenzhuo-1826.j.aivencloud.com',
-  port: Number(process.env.DB_PORT || 19674),
-  user: process.env.DB_USER || 'avnadmin',
-  password: process.env.DB_PASSWORD || 'AVNS_uK1vNg5bd-vj8C280MG',
-  database: process.env.DB_NAME || 'defaultdb',
-});
+import { getConnection } from '@/lib/db';
 
 /**
  * Extract submission ID from session ID
@@ -119,7 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // try to look it up in the database
     if (!submissionId && /^[A-Z]\d{4,5}$/.test(sessionId)) {
       // Connect to the database to look up the verification code
-      const conn = await pool.getConnection();
+      const conn = await getConnection();
       
       try {
         // Query to find the submission ID for this verification code
@@ -226,7 +217,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     // Get database connection
     console.log('🔵 Connecting to database');
-    const conn = await pool.getConnection();
+    const conn = await getConnection();
     
     try {
       // Check if submission exists
