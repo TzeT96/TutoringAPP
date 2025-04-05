@@ -206,8 +206,7 @@ Your Course Team`);
   };
 
   const handleViewReport = (studentEmail: string, assignmentId: string) => {
-    // Here you would typically implement the report viewing functionality
-    console.log('Viewing report for student:', studentEmail, 'assignment:', assignmentId);
+    window.open(`/report/${assignmentId}/${encodeURIComponent(studentEmail)}`, '_blank');
   };
 
   const getFilteredStudentResults = (assignmentId: string) => {
