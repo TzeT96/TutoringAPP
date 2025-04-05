@@ -258,7 +258,7 @@ export default async function handler(
       // Format questions for the student
       const studentIdPart = studentSessionId.split('-').slice(2).join('-'); // Extract "student-74696765" part
       const formattedQuestions = verificationQuestions.map((q: string, index: number) => ({
-        id: `question-${index}-${studentId}`,
+        id: `question-${index}-${studentIdPart}`,
         text: q,
         answer: null
       }));
