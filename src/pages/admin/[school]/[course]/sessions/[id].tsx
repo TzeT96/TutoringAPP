@@ -331,15 +331,31 @@ const SessionDetailsPage = () => {
                         
                         <p className="text-gray-700">{question.answer.text || question.answer.textAnswer}</p>
                         
-                        {question.answer.videoUrl && (
-                          <div className="mt-3">
-                            <video 
-                              src={question.answer.videoUrl} 
-                              controls 
-                              className="w-full max-w-md rounded"
-                            />
-                          </div>
-                        )}
+                        {(() => {
+                          // This approach avoids TypeScript null checking issues
+                          const answer = question.answer;
+                          if (!answer || !answer.videoUrl) return null;
+                          
+                          return (
+                            <div className="mt-3">
+                              <video 
+                                src={answer.videoUrl} 
+                                controls 
+                                className="w-full max-w-md rounded"
+                                onError={(e) => {
+                                  // Handle video loading errors
+                                  console.error("Video failed to load:", answer.videoUrl);
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                <a href={answer.videoUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                                  View video directly
+                                </a>
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <p className="mt-2 text-sm text-gray-500 italic">No answer provided yet</p>

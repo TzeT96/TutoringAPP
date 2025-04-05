@@ -373,6 +373,7 @@ export default async function handler(
                       answer: {
                         id: `answer-${question.id}`,
                         text: answerData.text_answer || "", // Map text_answer to text for UI compatibility
+                        textAnswer: answerData.text_answer || "", // Include both formats for backwards compatibility
                         videoUrl: answerData.video_url,
                         submittedAt: answerData.submitted_at
                       }
