@@ -1,42 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import prisma from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // For development, bypass auth checks
-  let userId = '';
+  // Use a default user ID since we're not using authentication
+  const userId = 'admin-user';
   
-  if (process.env.NODE_ENV === 'development') {
-    // Use hard-coded admin user
-    const adminUser = await prisma.user.findUnique({
-      where: { email: 'admin@example.com' }
-    });
-    if (adminUser) {
-      userId = adminUser.id;
-    } else {
-      return res.status(500).json({ error: 'Admin user not found in database' });
-    }
-  } else {
-    // Production auth check
-    const session = await getServerSession(req, res, authOptions);
-    if (!session) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    // Get current user from database
-    const user = await prisma.user.findUnique({
-      where: { email: session.user?.email || '' },
-    });
-
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ error: 'Not authorized to manage sessions' });
-    }
-    
-    userId = user.id;
-  }
-
   if (req.method === 'GET') {
     try {
       const { code } = req.query;
@@ -64,7 +33,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Return all sessions for this user
       const sessions = await prisma.tutoringSession.findMany({
-        where: { userId },
         include: {
           verificationCodes: true,
           questions: {

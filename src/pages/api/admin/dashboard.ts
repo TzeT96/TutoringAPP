@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
 import { mockSessions } from '../../../data/mockData';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -8,12 +7,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Skip auth check for demo purposes
-    // const session = await getSession({ req });
-    // if (!session) {
-    //   return res.status(401).json({ message: 'Unauthorized' });
-    // }
-
     // Calculate statistics from mock data
     const totalStudents = mockSessions.length;
     const completedSessions = mockSessions.filter(session => session.status === 'completed').length;

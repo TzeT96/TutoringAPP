@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
 import { mockSessions } from '../../../data/mockData';
 
 // Create a mock students array from the session data

@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
 import { Button, Container, TextField, Typography, Box, Paper } from '@mui/material';
 
 export default function NewSessionPage() {
   const router = useRouter();
-  const { data: session } = useSession();
   const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -37,19 +35,6 @@ export default function NewSessionPage() {
       setIsSubmitting(false);
     }
   };
-
-  if (!session) {
-    return (
-      <Container maxWidth="sm">
-        <Typography variant="h4" align="center" gutterBottom>
-          Access Denied
-        </Typography>
-        <Typography align="center">
-          Please sign in to create a new session.
-        </Typography>
-      </Container>
-    );
-  }
 
   return (
     <Container maxWidth="sm">
