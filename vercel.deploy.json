@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "env": {
+    "DB_HOST": "mysql-38ed915f-gasxchenzhuo-1826.j.aivencloud.com",
+    "DB_PORT": "19674",
+    "DB_USER": "avnadmin",
+    "DB_NAME": "defaultdb",
+    "NEXTAUTH_URL": "https://tutoring-app.vercel.app"
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+} 
