@@ -1,50 +1,49 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { mockSessions } from '@/data/mockData';
+import { v4 as uuidv4 } from 'uuid';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // For demo, we'll skip authentication
-  
   const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
     return res.status(400).json({ error: 'Session ID is required' });
   }
 
+  // Find session in mock data
+  const sessionIndex = mockSessions.findIndex(s => s.id === id);
+  if (sessionIndex === -1) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
   if (req.method === 'GET') {
     try {
-      // Find session in mock data
-      const session = mockSessions.find(s => s.id === id);
-      
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-
-      // If session has a plagiarismCase with studentQuestions
-      if (session.plagiarismCase && session.plagiarismCase.studentQuestions) {
-        const allQuestions = session.plagiarismCase.studentQuestions.flatMap(sq => 
-          sq.questions.map((q, index) => ({
-            id: `question-${index}`,
-            text: q,
-            studentId: sq.studentId,
-            studentName: sq.studentName,
-            answered: Math.random() > 0.5
-          }))
-        );
-        
-        return res.status(200).json(allQuestions);
-      }
-
-      // Return empty array if no questions
-      return res.status(200).json([]);
+      const session = mockSessions[sessionIndex];
+      const questions = session.plagiarismCase?.studentQuestions || [];
+      return res.status(200).json(questions);
     } catch (error) {
       console.error('Error fetching questions:', error);
       return res.status(500).json({ error: 'Failed to fetch questions' });
     }
   } else if (req.method === 'POST') {
     try {
-      // This would normally create a new question
-      // For demo, we'll just return success
-      return res.status(201).json({ message: 'Question created successfully', id: 'new-question-id' });
+      const { text } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: 'Question text is required' });
+      }
+
+      // Create a new question with a random ID
+      const newQuestion = {
+        id: uuidv4(),
+        text,
+        verificationCode: {
+          code: `VER-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+        },
+        answer: null
+      };
+
+      // Return mock created question
+      return res.status(201).json(newQuestion);
     } catch (error) {
       console.error('Error creating question:', error);
       return res.status(500).json({ error: 'Failed to create question' });

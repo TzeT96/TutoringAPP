@@ -3,8 +3,12 @@ import Link from 'next/link';
 import AdminLayout from '@/components/Layout_Courses';
 import { FiCalendar, FiSearch, FiFilter, FiPlus } from 'react-icons/fi';
 import { mockCourses, mockSessions, Assignment, Course, Session, Student, StudentQuestions } from '@/data/mockData';
+import { useRouter } from 'next/router';
 
 const SessionsPage = () => {
+  const router = useRouter();
+  const { school, course } = router.query;
+  
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -17,34 +21,99 @@ const SessionsPage = () => {
   const [courses, setCourses] = useState<Course[]>([]);
 
   useEffect(() => {
-    // Simulate API call to fetch sessions
+    // Don't fetch until we have school and course params
+    if (!school || !course) return;
+    
+    // Fetch real data for sessions
     const fetchData = async () => {
       try {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
+        setLoading(true);
+        // First try to fetch from course-specific API endpoint
+        try {
+          const response = await fetch(`/api/real-sessions/course/${school}/${course}`);
+          if (response.ok) {
+            const data = await response.json();
+            setSessions(data);
+            
+            // Extract unique courses from sessions
+            const uniqueCourses = Array.from(
+              new Set(data.map((session: Session) => session.courseId))
+            ).map(courseId => {
+              const session = data.find((s: Session) => s.courseId === courseId);
+              return {
+                id: courseId as string,
+                name: session.course,
+                teacherId: 'teacher-1',
+                instructor: 'Instructor',
+                studentCount: 0,
+                startDate: new Date().toISOString(),
+                endDate: new Date().toISOString(),
+                assignments: []
+              } as Course;
+            });
+            
+            setCourses(uniqueCourses);
+            
+            // Extract assignments from sessions
+            const uniqueAssignments = Array.from(
+              new Set(data.map((session: Session) => session.assignmentId))
+            ).map(assignmentId => {
+              const session = data.find((s: Session) => s.assignmentId === assignmentId);
+              return {
+                id: assignmentId as string,
+                title: session.assignment,
+                type: 'assignment' as 'assignment' | 'quiz' | 'exam',
+                dueDate: new Date().toISOString(),
+                totalPoints: 100,
+                studentResults: session.students.map((student: any) => ({
+                  studentId: student.id,
+                  studentName: student.name,
+                  studentEmail: student.email,
+                  score: 0,
+                  submissionDate: new Date().toISOString(),
+                  plagiarismStatus: student.plagiarismStatus,
+                  similarityScore: session.plagiarismCase.similarityScore
+                }))
+              } as Assignment;
+            });
+            
+            setAssignments(uniqueAssignments);
+            setLoading(false);
+            return;
+          }
+        } catch (apiErr) {
+          console.error('Course API fetch failed, falling back to mock data:', apiErr);
+        }
+
+        // Fall back to mock data if API fails
+        setSessions(mockSessions.filter(s => 
+          s.course.toLowerCase().includes(course.toString().toLowerCase())
+        ));
+        setCourses(mockCourses.filter(c => 
+          c.name.toLowerCase().includes(course.toString().toLowerCase())
+        ));
         
-        setSessions(mockSessions);
-        setCourses(mockCourses);
-        
-        // Flatten all assignments from courses
-        const allAssignments = mockCourses.flatMap(course => 
-          course.assignments.map(assignment => ({
-            ...assignment,
-            courseId: course.id,
-            courseName: course.name
-          }))
-        );
+        // Flatten assignments from filtered courses
+        const allAssignments = mockCourses
+          .filter(c => c.name.toLowerCase().includes(course.toString().toLowerCase()))
+          .flatMap(c => 
+            c.assignments.map(assignment => ({
+              ...assignment,
+              courseId: c.id,
+              courseName: c.name
+            }))
+          );
         
         setAssignments(allAssignments);
-        setLoading(false);
       } catch (err) {
         setError('Failed to load sessions');
+      } finally {
         setLoading(false);
       }
     };
     
     fetchData();
-  }, []);
+  }, [school, course]);
 
   const filteredSessions = sessions.filter(session => {
     // Filter by status
@@ -340,9 +409,6 @@ const SessionsPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {session.students.length} student(s)
-                      </div>
                       <div className="text-xs text-gray-500">
                         {session.students.map(student => student.name).join(', ')}
                       </div>
@@ -366,7 +432,7 @@ const SessionsPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <a 
-                        href={`/admin/sessions/${session.id}`} 
+                        href={`/admin/${school}/${course}/sessions/${session.id}`} 
                         className="text-indigo-600 hover:text-indigo-900"
                       >
                         View Details

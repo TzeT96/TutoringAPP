@@ -11,7 +11,6 @@ import {
   Legend,
 } from 'chart.js';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 
 ChartJS.register(
@@ -72,7 +71,6 @@ interface CourseData {
 
 const CourseDashboard = () => {
   const router = useRouter();
-  const { data: session } = useSession();
   const [courseData, setCourseData] = useState<CourseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -102,10 +100,9 @@ const CourseDashboard = () => {
 
         const data = await response.json();
         setCourseData(data);
-        setError('');
       } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+        console.error('Error fetching course data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch course data');
       } finally {
         setLoading(false);
       }
@@ -160,37 +157,57 @@ const CourseDashboard = () => {
 
   const handleSendEmail = (studentsToEmail: any[], assignment?: any) => {
     setSelectedStudents(studentsToEmail);
-    setSelectedAssignment(assignment || null);
+    setSelectedAssignment(assignment);
     
-    const assignmentInfo = assignment ? 
-      `regarding your submission for the ${assignment.title} ${assignment.type}` : 
-      'regarding your recent submission';
+    // Get verification code for the student
+    const studentData = studentsToEmail[0];
+    let verificationCode = studentData?.verificationCode;
     
-    setEmailTemplate(`Dear student,
+    // If we don't have a code yet, try to generate one deterministically
+    if (!verificationCode && studentData?.name) {
+      const firstName = studentData.name.split(' ')[0];
+      const firstLetter = firstName.charAt(0);
+      // Generate a 4-digit code deterministically based on name
+      const nameSum = studentData.name.split('').reduce((sum: number, char: string) => sum + char.charCodeAt(0), 0);
+      const digits = 1000 + (nameSum % 9000);
+      verificationCode = `${firstLetter}${digits}`;
+    }
+    
+    // Set up the email template with verification code and instructions
+    setEmailTemplate(`Dear ${studentData?.name || 'student'},
 
-We have reviewed ${assignmentInfo} and would like to discuss it with you in a tutoring session.
+We have detected potential academic integrity concerns with your submission for ${assignment?.title || 'the assignment'} that require verification.
 
-Please use the following verification code to access your tutoring session:
-{verificationCode}
+To complete the verification process:
+1. Please visit: http://localhost:3000/student/session/${verificationCode || 'CODE123'}
+2. Enter your verification code when prompted: ${verificationCode || 'CODE123'}
+3. Answer all verification questions honestly and thoroughly
+4. Record a video explanation for each question
+
+This process helps us understand your thought process and verifies your understanding of the work. Completing this verification is required as part of our academic integrity policy.
+
+If you have any questions or technical issues, please reply to this email.
 
 Best regards,
-${session?.user?.name || 'Your Tutor'}`);
-    
+Your Course Team`);
     setEmailDialogOpen(true);
   };
 
   const handleConfirmSendEmail = async () => {
     try {
-      // TODO: Implement email sending functionality
-      console.log('Sending emails to:', selectedStudents);
+      // Here you would typically send the email using your email service
+      // For now, we'll just close the dialog
       setEmailDialogOpen(false);
+      setSelectedStudents([]);
+      setSelectedAssignment(null);
     } catch (error) {
-      console.error('Error sending emails:', error);
+      console.error('Error sending email:', error);
     }
   };
 
   const handleViewReport = (studentEmail: string, assignmentId: string) => {
-    window.open(`/report/${assignmentId}/${encodeURIComponent(studentEmail)}`, '_blank');
+    // Here you would typically implement the report viewing functionality
+    console.log('Viewing report for student:', studentEmail, 'assignment:', assignmentId);
   };
 
   const getFilteredStudentResults = (assignmentId: string) => {
@@ -284,6 +301,19 @@ ${session?.user?.name || 'Your Tutor'}`);
     }
   };
 
+  const filteredAssignments = courseData?.assignments.filter(assignment => {
+    if (activeTab === 'all') return true;
+    if (activeTab === 'quizzes') return assignment.type === 'quiz';
+    if (activeTab === 'assignments') return assignment.type === 'assignment';
+    if (activeTab === 'exams') return assignment.type === 'exam';
+    return false; // Shouldn't reach here
+  }) || [];
+
+  const getAssignmentCount = (type: string) => {
+    if (!courseData) return 0;
+    return courseData.assignments.filter(a => a.type === type).length;
+  };
+
   if (loading) {
     return (
       <Layout_Courses>
@@ -313,12 +343,6 @@ ${session?.user?.name || 'Your Tutor'}`);
         {/* Course Header */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-semibold text-gray-900">Cheating Detection Dashboard</h1>
-          {session?.user && (
-            <div className="bg-white px-4 py-2 rounded-lg shadow border border-gray-200">
-              <span className="text-sm font-medium text-gray-500">Logged in as:</span>
-              <span className="ml-2 text-sm font-semibold">{session.user.name || session.user.email}</span>
-            </div>
-          )}
         </div>
         
         {/* Summary Cards */}
@@ -430,7 +454,7 @@ ${session?.user?.name || 'Your Tutor'}`);
               >
                 Assignments
                 <span className="ml-2 bg-gray-100 text-gray-900 px-2 py-0.5 rounded-full text-xs">
-                  {courseData?.assignments.filter(a => a.type.toLowerCase() === 'assignment').length || 0}
+                  {getAssignmentCount('assignment')}
                 </span>
               </button>
               <button
@@ -443,7 +467,7 @@ ${session?.user?.name || 'Your Tutor'}`);
               >
                 Quizzes
                 <span className="ml-2 bg-gray-100 text-gray-900 px-2 py-0.5 rounded-full text-xs">
-                  {courseData?.assignments.filter(a => a.type.toLowerCase() === 'quiz').length || 0}
+                  {getAssignmentCount('quiz')}
                 </span>
               </button>
               <button
@@ -456,7 +480,7 @@ ${session?.user?.name || 'Your Tutor'}`);
               >
                 Exams
                 <span className="ml-2 bg-gray-100 text-gray-900 px-2 py-0.5 rounded-full text-xs">
-                  {courseData?.assignments.filter(a => a.type.toLowerCase() === 'exam').length || 0}
+                  {getAssignmentCount('exam')}
                 </span>
               </button>
             </nav>
@@ -469,397 +493,389 @@ ${session?.user?.name || 'Your Tutor'}`);
                 <p className="text-gray-500">No assignments found.</p>
               </div>
             ) : (
-              courseData.assignments
-                .filter(assignment => {
-                  if (activeTab === 'all') return true;
-                  if (activeTab === 'quizzes') return assignment.type.toLowerCase() === 'quiz';
-                  if (activeTab === 'assignments') return assignment.type.toLowerCase() === 'assignment';
-                  if (activeTab === 'exams') return assignment.type.toLowerCase() === 'exam';
-                  return false;
-                })
-                .map((assignment) => (
-                  <div key={assignment.id} className="border-b border-gray-200 last:border-b-0">
-                    <div 
-                      className="bg-gray-50 px-4 py-4 sm:px-6 cursor-pointer hover:bg-gray-100"
-                      onClick={() => toggleAssignmentExpand(assignment.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h3 className="text-lg font-medium leading-6 text-gray-900 flex items-center">
-                            <svg 
-                              className={`h-5 w-5 mr-2 transition-transform ${expandedAssignments[assignment.id] ? 'transform rotate-90' : ''}`} 
-                              fill="none" 
-                              viewBox="0 0 24 24" 
-                              stroke="currentColor"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                            {assignment.title}
-                          </h3>
-                          <div className="flex items-center space-x-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              assignment.type === 'exam' ? 'bg-red-100 text-red-800' :
-                              assignment.type === 'quiz' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              {assignment.type}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              Due: {new Date(assignment.dueDate).toLocaleDateString()}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              Points: {assignment.totalPoints}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center">
-                          {/* Send email button */}
-                          <div className="relative mr-3">
-                            <div className="flex justify-end mb-2">
-                              {!expandedAssignments[assignment.id] && (
-                                <span className="text-xs text-gray-500 mr-2 inline-flex items-center">
-                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                  Expand to enable
-                                </span>
-                              )}
-                              <div className="relative inline-block text-left dropdown-container">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (expandedAssignments[assignment.id]) {
-                                      toggleDropdown(assignment.id);
-                                    }
-                                  }}
-                                  className={`inline-flex justify-center items-center gap-1 rounded-md border ${expandedAssignments[assignment.id] ? 'border-indigo-300 bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700' : 'border-gray-300 bg-white text-gray-400 cursor-not-allowed'} shadow-sm px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200`}
-                                  aria-haspopup="true"
-                                  aria-expanded={dropdownOpen[assignment.id] ? "true" : "false"}
-                                  disabled={!expandedAssignments[assignment.id]}
-                                  title={expandedAssignments[assignment.id] ? "Send emails to students" : "Expand the assignment to enable sending emails"}
-                                >
-                                  <span>Send Email ({getSuspectedStudents(assignment.id).length})</span>
-                                  <svg className={`w-4 h-4 ml-1 transition-transform ${dropdownOpen[assignment.id] ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                </button>
-                                {dropdownOpen[assignment.id] && expandedAssignments[assignment.id] && (
-                                  <>
-                                    <div 
-                                      className="fixed inset-0 z-40" 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleDropdown(assignment.id);
-                                      }}
-                                    />
-                                    <div 
-                                      className="absolute rounded-lg shadow-xl bg-white z-50"
-                                      onClick={(e) => e.stopPropagation()}
-                                      style={{ 
-                                        right: '0',
-                                        top: '100%',
-                                        marginTop: '10px',
-                                        width: '320px',
-                                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                                        animation: 'fadeIn 0.2s ease-out'
-                                      }}
-                                    >
-                                      <div className="py-4 px-4 bg-white rounded-lg">
-                                        <div className="text-sm font-bold text-gray-700 mb-3 border-b pb-2 border-gray-200">
-                                          Filter by plagiarism status:
-                                        </div>
-                                        <div className="space-y-3">
-                                          <div className="flex items-start">
-                                            <div className="flex items-center h-5">
-                                              <input
-                                                id={`suspected-${assignment.id}`}
-                                                type="checkbox"
-                                                className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
-                                                checked={(plagiarismFilters[assignment.id] || new Set(['suspected', 'confirmed', 'cleared'])).has('suspected')}
-                                                onChange={(e) => {
-                                                  e.stopPropagation();
-                                                  togglePlagiarismFilter(assignment.id, 'suspected');
-                                                }}
-                                                onClick={(e) => e.stopPropagation()}
-                                              />
-                                            </div>
-                                            <div className="ml-3 text-sm">
-                                              <label htmlFor={`suspected-${assignment.id}`} className="font-medium text-gray-700">
-                                                Suspected
-                                              </label>
-                                            </div>
-                                          </div>
-                                          <div className="flex items-start">
-                                            <div className="flex items-center h-5">
-                                              <input
-                                                id={`confirmed-${assignment.id}`}
-                                                type="checkbox"
-                                                className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
-                                                checked={(plagiarismFilters[assignment.id] || new Set(['suspected', 'confirmed', 'cleared'])).has('confirmed')}
-                                                onChange={(e) => {
-                                                  e.stopPropagation();
-                                                  togglePlagiarismFilter(assignment.id, 'confirmed');
-                                                }}
-                                                onClick={(e) => e.stopPropagation()}
-                                              />
-                                            </div>
-                                            <div className="ml-3 text-sm">
-                                              <label htmlFor={`confirmed-${assignment.id}`} className="font-medium text-gray-700">
-                                                Confirmed
-                                              </label>
-                                            </div>
-                                          </div>
-                                          <div className="flex items-start">
-                                            <div className="flex items-center h-5">
-                                              <input
-                                                id={`cleared-${assignment.id}`}
-                                                type="checkbox"
-                                                className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
-                                                checked={(plagiarismFilters[assignment.id] || new Set(['suspected', 'confirmed', 'cleared'])).has('cleared')}
-                                                onChange={(e) => {
-                                                  e.stopPropagation();
-                                                  togglePlagiarismFilter(assignment.id, 'cleared');
-                                                }}
-                                                onClick={(e) => e.stopPropagation()}
-                                              />
-                                            </div>
-                                            <div className="ml-3 text-sm">
-                                              <label htmlFor={`cleared-${assignment.id}`} className="font-medium text-gray-700">
-                                                Cleared
-                                              </label>
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <div className="mt-5 pt-3 border-t border-gray-200">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const students = getSuspectedStudents(assignment.id);
-                                              handleSendEmail(students, assignment);
-                                              toggleDropdown(assignment.id);
-                                            }}
-                                            disabled={getSuspectedStudents(assignment.id).length === 0}
-                                            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-base font-medium text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                          >
-                                            Apply & Send{getSuspectedStudents(assignment.id).length > 0 ? ` (${getSuspectedStudents(assignment.id).length})` : ' (0)'}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+              filteredAssignments.map((assignment) => (
+                <div key={assignment.id} className="border-b border-gray-200 last:border-b-0">
+                  <div 
+                    className="bg-gray-50 px-4 py-4 sm:px-6 cursor-pointer hover:bg-gray-100"
+                    onClick={() => toggleAssignmentExpand(assignment.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-medium leading-6 text-gray-900 flex items-center">
+                          <svg 
+                            className={`h-5 w-5 mr-2 transition-transform ${expandedAssignments[assignment.id] ? 'transform rotate-90' : ''}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          {assignment.title}
+                        </h3>
+                        <div className="flex items-center space-x-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            assignment.studentResults.filter(r => r.plagiarismStatus !== 'cleared').length > 0 
-                              ? 'bg-red-100 text-red-800' 
-                              : 'bg-green-100 text-green-800'
+                            assignment.type === 'exam' ? 'bg-red-100 text-red-800' :
+                            assignment.type === 'quiz' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
                           }`}>
-                            {assignment.studentResults.filter(r => r.plagiarismStatus !== 'cleared').length} flagged
+                            {assignment.type}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            Points: {assignment.totalPoints}
                           </span>
                         </div>
                       </div>
-                    </div>
-                    {expandedAssignments[assignment.id] && (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Student
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                AI Status
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                AI Score
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Tutoring Session
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Tutoring Result
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {getPaginatedStudentResults(assignment.id).map((result) => (
-                              <tr key={result.studentId} className={result.plagiarismStatus !== 'cleared' ? 'bg-red-50' : ''}>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm font-medium text-gray-900">{result.studentName}</div>
-                                  <div className="text-sm text-gray-500">{result.studentEmail}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    result.plagiarismStatus === 'confirmed' ? 'bg-red-100 text-red-800' :
-                                    result.plagiarismStatus === 'suspected' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-green-100 text-green-800'
-                                  }`}>
-                                    {result.plagiarismStatus}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="flex items-center">
-                                    <div className="mr-2 text-sm text-gray-900">{result.similarityScore}%</div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2 max-w-[100px]">
-                                      <div 
-                                        className={`h-2 rounded-full ${
-                                          result.similarityScore >= 70 ? 'bg-red-500' :
-                                          result.similarityScore >= 40 ? 'bg-yellow-500' :
-                                          'bg-green-500'
-                                        }`}
-                                        style={{ width: `${result.similarityScore}%` }}
-                                      />
+                      <div className="flex items-center">
+                        {/* Send email button */}
+                        <div className="relative mr-3">
+                          <div className="flex justify-end mb-2">
+                            {!expandedAssignments[assignment.id] && (
+                              <span className="text-xs text-gray-500 mr-2 inline-flex items-center">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                                Expand to enable
+                              </span>
+                            )}
+                            <div className="relative inline-block text-left dropdown-container">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (expandedAssignments[assignment.id]) {
+                                    toggleDropdown(assignment.id);
+                                  }
+                                }}
+                                className={`inline-flex justify-center items-center gap-1 rounded-md border ${expandedAssignments[assignment.id] ? 'border-indigo-300 bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700' : 'border-gray-300 bg-white text-gray-400 cursor-not-allowed'} shadow-sm px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200`}
+                                aria-haspopup="true"
+                                aria-expanded={dropdownOpen[assignment.id] ? "true" : "false"}
+                                disabled={!expandedAssignments[assignment.id]}
+                                title={expandedAssignments[assignment.id] ? "Send emails to students" : "Expand the assignment to enable sending emails"}
+                              >
+                                <span>Send Email ({getSuspectedStudents(assignment.id).length})</span>
+                                <svg className={`w-4 h-4 ml-1 transition-transform ${dropdownOpen[assignment.id] ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                              {dropdownOpen[assignment.id] && expandedAssignments[assignment.id] && (
+                                <>
+                                  <div 
+                                    className="fixed inset-0 z-40" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleDropdown(assignment.id);
+                                    }}
+                                  />
+                                  <div 
+                                    className="absolute rounded-lg shadow-xl bg-white z-50"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ 
+                                      right: '0',
+                                      top: '100%',
+                                      marginTop: '10px',
+                                      width: '320px',
+                                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                                      animation: 'fadeIn 0.2s ease-out'
+                                    }}
+                                  >
+                                    <div className="py-4 px-4 bg-white rounded-lg">
+                                      <div className="text-sm font-bold text-gray-700 mb-3 border-b pb-2 border-gray-200">
+                                        Filter by plagiarism status:
+                                      </div>
+                                      <div className="space-y-3">
+                                        <div className="flex items-start">
+                                          <div className="flex items-center h-5">
+                                            <input
+                                              id={`suspected-${assignment.id}`}
+                                              type="checkbox"
+                                              className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
+                                              checked={(plagiarismFilters[assignment.id] || new Set(['suspected', 'confirmed', 'cleared'])).has('suspected')}
+                                              onChange={(e) => {
+                                                e.stopPropagation();
+                                                togglePlagiarismFilter(assignment.id, 'suspected');
+                                              }}
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </div>
+                                          <div className="ml-3 text-sm">
+                                            <label htmlFor={`suspected-${assignment.id}`} className="font-medium text-gray-700">
+                                              Suspected
+                                            </label>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-start">
+                                          <div className="flex items-center h-5">
+                                            <input
+                                              id={`confirmed-${assignment.id}`}
+                                              type="checkbox"
+                                              className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
+                                              checked={(plagiarismFilters[assignment.id] || new Set(['suspected', 'confirmed', 'cleared'])).has('confirmed')}
+                                              onChange={(e) => {
+                                                e.stopPropagation();
+                                                togglePlagiarismFilter(assignment.id, 'confirmed');
+                                              }}
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </div>
+                                          <div className="ml-3 text-sm">
+                                            <label htmlFor={`confirmed-${assignment.id}`} className="font-medium text-gray-700">
+                                              Confirmed
+                                            </label>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-start">
+                                          <div className="flex items-center h-5">
+                                            <input
+                                              id={`cleared-${assignment.id}`}
+                                              type="checkbox"
+                                              className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
+                                              checked={(plagiarismFilters[assignment.id] || new Set(['suspected', 'confirmed', 'cleared'])).has('cleared')}
+                                              onChange={(e) => {
+                                                e.stopPropagation();
+                                                togglePlagiarismFilter(assignment.id, 'cleared');
+                                              }}
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </div>
+                                          <div className="ml-3 text-sm">
+                                            <label htmlFor={`cleared-${assignment.id}`} className="font-medium text-gray-700">
+                                              Cleared
+                                            </label>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="mt-5 pt-3 border-t border-gray-200">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const students = getSuspectedStudents(assignment.id);
+                                            handleSendEmail(students, assignment);
+                                            toggleDropdown(assignment.id);
+                                          }}
+                                          disabled={getSuspectedStudents(assignment.id).length === 0}
+                                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-base font-medium text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          Apply & Send{getSuspectedStudents(assignment.id).length > 0 ? ` (${getSuspectedStudents(assignment.id).length})` : ' (0)'}
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className="text-sm text-gray-500">
-                                    {result.plagiarismStatus !== 'cleared' ? 'Not scheduled' : '-'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className="text-sm text-gray-500">
-                                    {result.plagiarismStatus !== 'cleared' ? 'Pending' : '-'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  {result.plagiarismStatus !== 'cleared' && (
-                                    <div className="flex flex-col space-y-2">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleSendEmail([{ id: result.studentId, name: result.studentName, email: result.studentEmail }], assignment);
-                                        }}
-                                        className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
-                                      >
-                                        Send Email
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleViewReport(result.studentEmail, assignment.id);
-                                        }}
-                                        className="text-green-600 hover:text-green-900"
-                                      >
-                                        View Report
-                                      </button>
-                                    </div>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        
-                        {/* Pagination Controls */}
-                        {getFilteredStudentResults(assignment.id).length > STUDENTS_PER_PAGE && (
-                          <div className="px-6 py-3 bg-white border-t border-gray-200 flex items-center justify-between">
-                            <div className="flex-1 flex justify-between sm:hidden">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const currentPage = currentPages[assignment.id] || 1;
-                                  if (currentPage > 1) {
-                                    changePage(assignment.id, currentPage - 1);
-                                  }
-                                }}
-                                disabled={(currentPages[assignment.id] || 1) <= 1}
-                                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${(currentPages[assignment.id] || 1) <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              >
-                                Previous
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const currentPage = currentPages[assignment.id] || 1;
-                                  const totalPages = getTotalPages(assignment.id);
-                                  if (currentPage < totalPages) {
-                                    changePage(assignment.id, currentPage + 1);
-                                  }
-                                }}
-                                disabled={(currentPages[assignment.id] || 1) >= getTotalPages(assignment.id)}
-                                className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${(currentPages[assignment.id] || 1) >= getTotalPages(assignment.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              >
-                                Next
-                              </button>
-                            </div>
-                            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                              <div>
-                                <p className="text-sm text-gray-700">
-                                  Showing <span className="font-medium">{((currentPages[assignment.id] || 1) - 1) * STUDENTS_PER_PAGE + 1}</span> to{' '}
-                                  <span className="font-medium">
-                                    {Math.min((currentPages[assignment.id] || 1) * STUDENTS_PER_PAGE, getFilteredStudentResults(assignment.id).length)}
-                                  </span>{' '}
-                                  of <span className="font-medium">{getFilteredStudentResults(assignment.id).length}</span> students
-                                </p>
-                              </div>
-                              <div>
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const currentPage = currentPages[assignment.id] || 1;
-                                      if (currentPage > 1) {
-                                        changePage(assignment.id, currentPage - 1);
-                                      }
-                                    }}
-                                    disabled={(currentPages[assignment.id] || 1) <= 1}
-                                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${(currentPages[assignment.id] || 1) <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  >
-                                    <span className="sr-only">Previous</span>
-                                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                  </button>
-                                  {/* Page numbers */}
-                                  {Array.from({ length: getTotalPages(assignment.id) }, (_, i) => i + 1).map((page) => (
-                                    <button
-                                      key={page}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        changePage(assignment.id, page);
-                                      }}
-                                      aria-current={(currentPages[assignment.id] || 1) === page ? "page" : undefined}
-                                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                        (currentPages[assignment.id] || 1) === page
-                                          ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
-                                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                                      }`}
-                                    >
-                                      {page}
-                                    </button>
-                                  ))}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const currentPage = currentPages[assignment.id] || 1;
-                                      const totalPages = getTotalPages(assignment.id);
-                                      if (currentPage < totalPages) {
-                                        changePage(assignment.id, currentPage + 1);
-                                      }
-                                    }}
-                                    disabled={(currentPages[assignment.id] || 1) >= getTotalPages(assignment.id)}
-                                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${(currentPages[assignment.id] || 1) >= getTotalPages(assignment.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  >
-                                    <span className="sr-only">Next</span>
-                                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                  </button>
-                                </nav>
-                              </div>
+                                </>
+                              )}
                             </div>
                           </div>
-                        )}
+                        </div>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          assignment.studentResults.filter(r => r.plagiarismStatus !== 'cleared').length > 0 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {assignment.studentResults.filter(r => r.plagiarismStatus !== 'cleared').length} flagged
+                        </span>
                       </div>
-                    )}
+                    </div>
                   </div>
-                ))
+                  {expandedAssignments[assignment.id] && (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Student
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              AI Status
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              AI Score
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Tutoring Session
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Tutoring Result
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {getPaginatedStudentResults(assignment.id).map((result) => (
+                            <tr key={result.studentId} className={result.plagiarismStatus !== 'cleared' ? 'bg-red-50' : ''}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{result.studentName}</div>
+                                <div className="text-sm text-gray-500">{result.studentEmail}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  result.plagiarismStatus === 'confirmed' ? 'bg-red-100 text-red-800' :
+                                  result.plagiarismStatus === 'suspected' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  {result.plagiarismStatus}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="mr-2 text-sm text-gray-900">{result.similarityScore}%</div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2 max-w-[100px]">
+                                    <div 
+                                      className={`h-2 rounded-full ${
+                                        result.similarityScore >= 70 ? 'bg-red-500' :
+                                        result.similarityScore >= 40 ? 'bg-yellow-500' :
+                                        'bg-green-500'
+                                      }`}
+                                      style={{ width: `${result.similarityScore}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm text-gray-500">
+                                  {result.plagiarismStatus !== 'cleared' ? 'Not scheduled' : '-'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm text-gray-500">
+                                  {result.plagiarismStatus !== 'cleared' ? 'Pending' : '-'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                {result.plagiarismStatus !== 'cleared' && (
+                                  <div className="flex flex-col space-y-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSendEmail([{ id: result.studentId, name: result.studentName, email: result.studentEmail }], assignment);
+                                      }}
+                                      className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
+                                    >
+                                      Send Email
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewReport(result.studentEmail, assignment.id);
+                                      }}
+                                      className="text-green-600 hover:text-green-900"
+                                    >
+                                      View Report
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      
+                      {/* Pagination Controls */}
+                      {getFilteredStudentResults(assignment.id).length > STUDENTS_PER_PAGE && (
+                        <div className="px-6 py-3 bg-white border-t border-gray-200 flex items-center justify-between">
+                          <div className="flex-1 flex justify-between sm:hidden">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentPage = currentPages[assignment.id] || 1;
+                                if (currentPage > 1) {
+                                  changePage(assignment.id, currentPage - 1);
+                                }
+                              }}
+                              disabled={(currentPages[assignment.id] || 1) <= 1}
+                              className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${(currentPages[assignment.id] || 1) <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              Previous
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentPage = currentPages[assignment.id] || 1;
+                                const totalPages = getTotalPages(assignment.id);
+                                if (currentPage < totalPages) {
+                                  changePage(assignment.id, currentPage + 1);
+                                }
+                              }}
+                              disabled={(currentPages[assignment.id] || 1) >= getTotalPages(assignment.id)}
+                              className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${(currentPages[assignment.id] || 1) >= getTotalPages(assignment.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              Next
+                            </button>
+                          </div>
+                          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm text-gray-700">
+                                Showing <span className="font-medium">{((currentPages[assignment.id] || 1) - 1) * STUDENTS_PER_PAGE + 1}</span> to{' '}
+                                <span className="font-medium">
+                                  {Math.min((currentPages[assignment.id] || 1) * STUDENTS_PER_PAGE, getFilteredStudentResults(assignment.id).length)}
+                                </span>{' '}
+                                of <span className="font-medium">{getFilteredStudentResults(assignment.id).length}</span> students
+                              </p>
+                            </div>
+                            <div>
+                              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const currentPage = currentPages[assignment.id] || 1;
+                                    if (currentPage > 1) {
+                                      changePage(assignment.id, currentPage - 1);
+                                    }
+                                  }}
+                                  disabled={(currentPages[assignment.id] || 1) <= 1}
+                                  className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${(currentPages[assignment.id] || 1) <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  <span className="sr-only">Previous</span>
+                                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                                {/* Page numbers */}
+                                {Array.from({ length: getTotalPages(assignment.id) }, (_, i) => i + 1).map((page) => (
+                                  <button
+                                    key={page}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      changePage(assignment.id, page);
+                                    }}
+                                    aria-current={(currentPages[assignment.id] || 1) === page ? "page" : undefined}
+                                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                      (currentPages[assignment.id] || 1) === page
+                                        ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {page}
+                                  </button>
+                                ))}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const currentPage = currentPages[assignment.id] || 1;
+                                    const totalPages = getTotalPages(assignment.id);
+                                    if (currentPage < totalPages) {
+                                      changePage(assignment.id, currentPage + 1);
+                                    }
+                                  }}
+                                  disabled={(currentPages[assignment.id] || 1) >= getTotalPages(assignment.id)}
+                                  className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${(currentPages[assignment.id] || 1) >= getTotalPages(assignment.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  <span className="sr-only">Next</span>
+                                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              </nav>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
             )}
           </div>
         </div>

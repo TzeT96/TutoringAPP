@@ -116,21 +116,24 @@ export default async function handler(
         }
 
         const studentResults = submissions.map((sub: any) => {
-          let detectionResult;
+          let detectionResult = null;
+          
           try {
-            detectionResult = typeof sub.submission_detection_result === 'string' 
+            const parsedResult = typeof sub.submission_detection_result === 'string' 
               ? JSON.parse(sub.submission_detection_result) 
               : sub.submission_detection_result;
+
+            if (parsedResult) {
+              detectionResult = parsedResult;
+            }
           } catch (error) {
             console.error('Error parsing submission_detection_result:', error);
-            detectionResult = {
-              ai_probability: 0,
-              student_email: 'unknown@example.com',
-              student_name: 'Unknown Student',
-              requires_verification: 0,
-              verification_questions: [],
-              canvas_url: ''
-            };
+            return null; // Skip this submission if we can't parse it
+          }
+
+          // Skip submissions without valid student data
+          if (!detectionResult || !detectionResult.student_email || !detectionResult.student_name) {
+            return null;
           }
 
           // Determine plagiarism status based on AI probability
@@ -153,12 +156,23 @@ export default async function handler(
             verificationQuestions: detectionResult.verification_questions,
             canvasUrl: detectionResult.canvas_url
           };
-        });
+        }).filter((result: any) => result !== null) as Array<{
+          studentId: string;
+          studentName: string;
+          studentEmail: string;
+          score: number;
+          submissionDate: Date;
+          plagiarismStatus: string;
+          similarityScore: number;
+          requiresVerification: boolean;
+          verificationQuestions?: string[];
+          canvasUrl?: string;
+        }>;
 
         return {
           id: assignment.id.toString(),
           title: assignment.assignment_name,
-          type: assignment.assignment_type,
+          type: assignment.assignment_type.toLowerCase(),
           dueDate: assignment.due_date,
           totalPoints: 100, // Default value since we don't have this in the database
           studentResults

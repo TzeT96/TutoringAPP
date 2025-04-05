@@ -1,15 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/pages/api/auth/[...nextauth]';
 import { mockSessions } from '@/data/mockData';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Bypass authentication for demo
-  // const session = await getServerSession(req, res, authOptions);
-  // if (!session) {
-  //   return res.status(401).json({ error: 'Unauthorized' });
-  // }
-
   const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
@@ -32,8 +24,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'PUT') {
     try {
-      // For demo purposes, we'll just pretend to update
-      return res.status(200).json({ message: 'Session updated successfully' });
+      const { status } = req.body;
+      
+      // Mock update - in a real app, you'd update the database
+      const updatedSession = mockSessions.find(s => s.id === id);
+      if (!updatedSession) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+      
+      // Return mock updated session
+      return res.status(200).json({
+        ...updatedSession,
+        status: status || updatedSession.status
+      });
     } catch (error) {
       console.error('Error updating session:', error);
       return res.status(500).json({ error: 'Failed to update session' });

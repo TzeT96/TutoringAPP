@@ -414,116 +414,122 @@ const generateTutoringQuestions = (sessionId: string, studentId: string): string
 };
 
 // Create static mock sessions based on assignments with suspected plagiarism
-export const mockSessions: Session[] = [];
-
-// Add sessions for PHY211
-PHY211Course.assignments.forEach(assignment => {
-  const suspectedStudents = assignment.studentResults.filter(
-    result => result.plagiarismStatus === 'suspected' || result.plagiarismStatus === 'confirmed'
-  );
-  
-  suspectedStudents.forEach(result => {
-    const sessionId = `session-${assignment.id}-${result.studentId}`;
-    
-    // Use fixed date instead of random
-    const date = new Date('2023-04-15T14:00:00Z');
-    
-    // Use predetermined completion status
-    const completed = sessionCompletionStatus[sessionId] !== undefined 
-      ? sessionCompletionStatus[sessionId] 
-      : false;
-    
-    const student = PHY211Students.find(s => s.id === result.studentId);
-    if (!student) return;
-    
-    const session: Session = {
-      id: sessionId,
-      courseId: PHY211Course.id,
-      course: PHY211Course.name,
-      assignmentId: assignment.id,
-      assignment: assignment.title,
-      date: date.toISOString(),
-      status: completed ? 'completed' : 'scheduled',
-      students: [student],
-      plagiarismCase: {
-        assignmentType: assignment.type,
-        similarityScore: result.similarityScore,
-        description: 'Plagiarism case investigation',
-        studentQuestions: [
-          {
-            studentId: result.studentId,
-            studentName: result.studentName,
-            questions: generateTutoringQuestions(sessionId, result.studentId)
-          }
-        ]
-      },
-      // Use predetermined verification code
-      verificationCode: sessionVerificationCodes[sessionId] || `CODE-${sessionId.substring(0, 4)}`
-    };
-    
-    mockSessions.push(session);
-  });
-});
-
-// Add sessions for MATH101
-MATH101Course.assignments.forEach(assignment => {
-  const suspectedStudents = assignment.studentResults.filter(
-    result => result.plagiarismStatus === 'suspected' || result.plagiarismStatus === 'confirmed'
-  );
-  
-  suspectedStudents.slice(0, 5).forEach(result => {
-    const sessionId = `session-${assignment.id}-${result.studentId}`;
-    
-    // Use fixed date instead of random
-    const date = new Date('2023-04-18T10:00:00Z');
-    
-    // Use predetermined completion status
-    const completed = sessionCompletionStatus[sessionId] !== undefined 
-      ? sessionCompletionStatus[sessionId] 
-      : false;
-    
-    const student = PHY211Students.find(s => s.id === result.studentId);
-    const studentObj = student || {
-      id: result.studentId,
-      name: result.studentName,
-      email: result.studentEmail || '',
-      grade: getGradeFromScore(result.score),
-      score: result.score,
-      riskLevel: 'low', 
-      emailStatus: 'pending',
-      plagiarismStatus: 'unknown',
-      status: 'pending',
-      sessionCompleted: false
-    };
-    
-    const session: Session = {
-      id: sessionId,
-      courseId: MATH101Course.id,
-      course: MATH101Course.name,
-      assignmentId: assignment.id,
-      assignment: assignment.title,
-      date: date.toISOString(),
-      status: completed ? 'completed' : 'scheduled',
-      students: [studentObj],
-      plagiarismCase: {
-        assignmentType: assignment.type,
-        similarityScore: result.similarityScore,
-        description: 'Plagiarism case investigation',
-        studentQuestions: [
-          {
-            studentId: result.studentId,
-            studentName: result.studentName,
-            questions: generateTutoringQuestions(sessionId, result.studentId)
-          }
-        ]
-      },
-      // Use predetermined verification code
-      verificationCode: sessionVerificationCodes[sessionId] || `CODE-${sessionId.substring(0, 4)}`
-    };
-    
-    mockSessions.push(session);
-  });
-});
+export const mockSessions: Session[] = [
+  {
+    id: 'session-1-student-abcd1234',
+    courseId: 'course-cs101',
+    course: 'CS 101',
+    assignmentId: 'assignment-1',
+    assignment: 'Introduction to Programming',
+    date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    status: 'scheduled',
+    students: [
+      {
+        id: 'student-abcd1234',
+        name: 'John Doe',
+        email: 'john.doe@university.edu',
+        riskLevel: 'high',
+        emailStatus: 'sent',
+        plagiarismStatus: 'confirmed',
+        status: 'pending',
+        verificationCode: 'JSTU'
+      }
+    ],
+    plagiarismCase: {
+      assignmentType: 'Assignment',
+      similarityScore: 85,
+      description: 'Suspected plagiarism in Introduction to Programming assignment',
+      studentQuestions: [
+        {
+          studentId: 'student-abcd1234',
+          studentName: 'John Doe',
+          questions: [
+            'Can you explain how you implemented the sorting algorithm in your code?',
+            'What resources did you use to help with this assignment?',
+            'Walk me through your thought process when solving problem 3.'
+          ]
+        }
+      ]
+    },
+    verificationCode: 'JSTU'
+  },
+  {
+    id: 'session-2-student-efgh5678',
+    courseId: 'course-math201',
+    course: 'MATH 201',
+    assignmentId: 'assignment-2',
+    assignment: 'Calculus II Midterm',
+    date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    status: 'scheduled',
+    students: [
+      {
+        id: 'student-efgh5678',
+        name: 'Jane Smith',
+        email: 'jane.smith@university.edu',
+        riskLevel: 'medium',
+        emailStatus: 'sent',
+        plagiarismStatus: 'suspected',
+        status: 'pending',
+        verificationCode: 'JSTU'
+      }
+    ],
+    plagiarismCase: {
+      assignmentType: 'Exam',
+      similarityScore: 65,
+      description: 'Suspected plagiarism in Calculus II Midterm',
+      studentQuestions: [
+        {
+          studentId: 'student-efgh5678',
+          studentName: 'Jane Smith',
+          questions: [
+            'How did you solve the integration problem on page 2?',
+            'Can you show your work for problem 5?',
+            'What formulas did you use for the series convergence problems?'
+          ]
+        }
+      ]
+    },
+    verificationCode: 'JSTU'
+  },
+  {
+    id: 'session-3-student-ijkl9012',
+    courseId: 'course-cs101',
+    course: 'CS 101',
+    assignmentId: 'assignment-3',
+    assignment: 'Data Structures Assignment',
+    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    status: 'completed',
+    students: [
+      {
+        id: 'student-ijkl9012',
+        name: 'Bob Johnson',
+        email: 'bob.johnson@university.edu',
+        riskLevel: 'low',
+        emailStatus: 'sent',
+        plagiarismStatus: 'cleared',
+        status: 'attended',
+        verificationCode: 'BSTU'
+      }
+    ],
+    plagiarismCase: {
+      assignmentType: 'Assignment',
+      similarityScore: 40,
+      description: 'Suspected plagiarism in Data Structures Assignment',
+      studentQuestions: [
+        {
+          studentId: 'student-ijkl9012',
+          studentName: 'Bob Johnson',
+          questions: [
+            'Explain your implementation of the binary search tree.',
+            'How did you approach the time complexity analysis?',
+            'What edge cases did you consider in your solution?'
+          ]
+        }
+      ]
+    },
+    verificationCode: 'BSTU'
+  }
+];
 
 // Add mock questions with static data
 export const mockQuestions: TutoringQuestion[] = [
@@ -558,8 +564,8 @@ export const mockQuestions: TutoringQuestion[] = [
   {
     id: 'q5',
     text: 'How do I calculate the work done by a force?',
-    sessionId: 'session-math101-exam-1-student-4',
-    studentId: 'student-4',
+    sessionId: 'session-phy211-assignment-1-student-2',
+    studentId: 'student-2',
     answered: false
   }
 ];

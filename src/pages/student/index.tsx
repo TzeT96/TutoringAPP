@@ -1,9 +1,7 @@
-import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 
 export default function StudentPage() {
-  const { data: session } = useSession();
   const router = useRouter();
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');

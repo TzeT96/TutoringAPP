@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "env": {
+    "DB_HOST": "mysql-38ed915f-gasxchenzhuo-1826.j.aivencloud.com",
+    "DB_PORT": "19674",
+    "DB_USER": "avnadmin",
+    "DB_PASSWORD": "AVNS_uK1vNg5bd-vj8C280MG",
+    "DB_NAME": "defaultdb",
+    "DATABASE_URL": "mysql://avnadmin:AVNS_uK1vNg5bd-vj8C280MG@mysql-38ed915f-gasxchenzhuo-1826.j.aivencloud.com:19674/defaultdb",
+    "NEXTAUTH_URL": "https://tutoring-app.vercel.app",
+    "NEXTAUTH_SECRET": "your-secret-key",
+    "AWS_REGION": "us-west-1",
+    "S3_BUCKET_NAME": "tommy-demo-s3-v2",
+    "AWS_ACCESS_KEY_ID": "your-access-key-id",
+    "AWS_SECRET_ACCESS_KEY": "your-secret-access-key"
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+} 

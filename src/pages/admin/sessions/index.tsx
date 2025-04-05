@@ -17,12 +17,68 @@ const SessionsPage = () => {
   const [courses, setCourses] = useState<Course[]>([]);
 
   useEffect(() => {
-    // Simulate API call to fetch sessions
+    // Fetch real data for sessions
     const fetchData = async () => {
       try {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+        setLoading(true);
+        // First try to fetch from real API
+        try {
+          const response = await fetch('/api/real-sessions');
+          if (response.ok) {
+            const data = await response.json();
+            setSessions(data);
+            
+            // Extract unique courses from sessions
+            const uniqueCourses = Array.from(
+              new Set(data.map((session: Session) => session.courseId))
+            ).map(courseId => {
+              const session = data.find((s: Session) => s.courseId === courseId);
+              return {
+                id: courseId as string,
+                name: session.course,
+                teacherId: 'teacher-1',
+                instructor: 'Instructor',
+                studentCount: 0,
+                startDate: new Date().toISOString(),
+                endDate: new Date().toISOString(),
+                assignments: []
+              } as Course;
+            });
+            
+            setCourses(uniqueCourses);
+            
+            // Extract assignments from sessions
+            const uniqueAssignments = Array.from(
+              new Set(data.map((session: Session) => session.assignmentId))
+            ).map(assignmentId => {
+              const session = data.find((s: Session) => s.assignmentId === assignmentId);
+              return {
+                id: assignmentId as string,
+                title: session.assignment,
+                type: 'assignment' as 'assignment' | 'quiz' | 'exam',
+                dueDate: new Date().toISOString(),
+                totalPoints: 100,
+                studentResults: session.students.map((student: any) => ({
+                  studentId: student.id,
+                  studentName: student.name,
+                  studentEmail: student.email,
+                  score: 0,
+                  submissionDate: new Date().toISOString(),
+                  plagiarismStatus: student.plagiarismStatus,
+                  similarityScore: session.plagiarismCase.similarityScore
+                }))
+              } as Assignment;
+            });
+            
+            setAssignments(uniqueAssignments);
+            setLoading(false);
+            return;
+          }
+        } catch (apiErr) {
+          console.error('Real API fetch failed, falling back to mock data:', apiErr);
+        }
+
+        // Fall back to mock data if API fails
         setSessions(mockSessions);
         setCourses(mockCourses);
         
@@ -36,9 +92,9 @@ const SessionsPage = () => {
         );
         
         setAssignments(allAssignments);
-        setLoading(false);
       } catch (err) {
         setError('Failed to load sessions');
+      } finally {
         setLoading(false);
       }
     };
@@ -340,9 +396,6 @@ const SessionsPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {session.students.length} student(s)
-                      </div>
                       <div className="text-xs text-gray-500">
                         {session.students.map(student => student.name).join(', ')}
                       </div>

@@ -12,7 +12,6 @@ import {
 } from 'chart.js';
 import { useRouter } from 'next/router';
 import { getTeacherCourses, ExtendedCourse } from '@/lib/admin-data-service';
-import { useSession } from 'next-auth/react';
 
 ChartJS.register(
   CategoryScale,
@@ -37,7 +36,6 @@ const globalStyles = `
 
 const AdminDashboard = () => {
   const router = useRouter();
-  const { data: session } = useSession();
   const [courses, setCourses] = useState<ExtendedCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -117,36 +115,64 @@ const AdminDashboard = () => {
     router.push(`/admin/courses/${courseId}`);
   };
 
-  const handleSendEmail = (studentsToEmail: any[], assignment?: any) => {
+  const handleSendEmail = async (studentsToEmail: any[], assignment?: any) => {
     setSelectedStudents(studentsToEmail);
     setSelectedAssignment(assignment || null);
     
-    const assignmentInfo = assignment ? 
-      `regarding your submission for the ${assignment.title} ${assignment.type}` : 
-      'regarding your recent submission';
+    // Get verification code for the student
+    const verificationCode = studentsToEmail[0]?.verificationCode;
     
+    // Set up the email template with verification code and instructions
     setEmailTemplate(`Dear student,
 
-We have reviewed ${assignmentInfo} and would like to discuss it with you in a tutoring session.
+We have detected potential academic integrity concerns with your submission for ${assignment?.title || 'the assignment'} that require verification.
 
-Please use the following verification code to access your tutoring session:
-{verificationCode}
+To complete the verification process:
+1. Please visit: http://localhost:3000/student/session/${verificationCode || 'CODE123'}
+2. Enter your verification code when prompted: ${verificationCode || 'CODE123'}
+3. Answer all verification questions honestly and thoroughly
+4. Record a video explanation for each question
+
+This process helps us understand your thought process and verifies your understanding of the work. Completing this verification is required as part of our academic integrity policy.
+
+If you have any questions or technical issues, please reply to this email.
 
 Best regards,
-${session?.user?.name || 'Your Tutor'}`);
+Your Course Team`);
     
     setEmailDialogOpen(true);
   };
 
   const handleConfirmSendEmail = async () => {
     try {
-      // Simulate API call to send emails
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const emailContent = `Dear student,
+
+We have detected potential academic integrity concerns with your submission for ${selectedAssignment?.title || 'the assignment'} that require verification.
+
+To complete the verification process:
+1. Please visit: http://localhost:3000/student/session/${selectedAssignment?.verificationCode || 'CODE123'}
+2. Enter your verification code when prompted: ${selectedAssignment?.verificationCode || 'CODE123'}
+3. Answer all verification questions honestly and thoroughly
+4. Record a video explanation for each question
+
+This process helps us understand your thought process and verifies your understanding of the work. Completing this verification is required as part of our academic integrity policy.
+
+If you have any questions or technical issues, please reply to this email.
+
+Best regards,
+Your Course Team`;
+
+      // In a real app, this would send the email
+      console.log('Sending email to:', selectedStudents.map(s => s.email).join(', '));
+      console.log('Email content:', emailContent);
+      
+      alert('Email sent successfully!');
       setEmailDialogOpen(false);
       setSelectedStudents([]);
       setSelectedAssignment(null);
-    } catch (err) {
-      setError('Failed to send emails');
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Failed to send email');
     }
   };
 
@@ -249,6 +275,12 @@ ${session?.user?.name || 'Your Tutor'}`);
     return filteredResults.slice(startIndex, endIndex);
   };
 
+  const getAssignmentCount = (type: string) => {
+    return courses.reduce((total, course) => {
+      return total + course.assignments.filter(a => a.type === type).length;
+    }, 0);
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -276,36 +308,24 @@ ${session?.user?.name || 'Your Tutor'}`);
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-semibold text-gray-900">Cheating Detection Dashboard</h1>
-          {session?.user && (
-            <div className="bg-white px-4 py-2 rounded-lg shadow border border-gray-200">
-              <span className="text-sm font-medium text-gray-500">Logged in as:</span>
-              <span className="ml-2 text-sm font-semibold">{session.user.name || session.user.email}</span>
-            </div>
-          )}
         </div>
         
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="rounded-md bg-indigo-500 p-3">
                     <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                     </svg>
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Submissions</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {courses.reduce((sum, course) => 
-                        sum + course.assignments.reduce((aSum, assignment) => 
-                          aSum + assignment.studentResults.length, 0
-                        ), 0
-                      )}
-                    </dd>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Courses</dt>
+                    <dd className="text-lg font-medium text-gray-900">{courses.length}</dd>
                   </dl>
                 </div>
               </div>
@@ -316,17 +336,17 @@ ${session?.user?.name || 'Your Tutor'}`);
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="rounded-md bg-red-500 p-3">
+                  <div className="rounded-md bg-green-500 p-3">
                     <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">High Risk Submissions</dt>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Assignments</dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {courses.reduce((sum, course) => sum + (course.highRiskCount || 0), 0)}
+                      {courses.reduce((sum, course) => sum + course.assignments.length, 0)}
                     </dd>
                   </dl>
                 </div>
@@ -346,13 +366,35 @@ ${session?.user?.name || 'Your Tutor'}`);
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Verification Required</dt>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Suspected Cases</dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {courses.reduce((sum, course) => 
-                        sum + course.assignments.reduce((aSum, assignment) => 
-                          aSum + assignment.studentResults.filter(r => r.requiresVerification).length, 0
-                        ), 0
-                      )}
+                        sum + course.assignments.reduce((assignmentSum, assignment) => 
+                          assignmentSum + assignment.studentResults.filter(r => r.plagiarismStatus === 'suspected').length, 0), 0)}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="rounded-md bg-red-500 p-3">
+                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Confirmed Cases</dt>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {courses.reduce((sum, course) => 
+                        sum + course.assignments.reduce((assignmentSum, assignment) => 
+                          assignmentSum + assignment.studentResults.filter(r => r.plagiarismStatus === 'confirmed').length, 0), 0)}
                     </dd>
                   </dl>
                 </div>
@@ -386,7 +428,7 @@ ${session?.user?.name || 'Your Tutor'}`);
               >
                 All
                 <span className="ml-2 bg-gray-100 text-gray-900 px-2 py-0.5 rounded-full text-xs">
-                  2
+                  {courses.reduce((sum, course) => sum + course.assignments.length, 0)}
                 </span>
               </button>
               <button
@@ -399,7 +441,7 @@ ${session?.user?.name || 'Your Tutor'}`);
               >
                 Assignments
                 <span className="ml-2 bg-gray-100 text-gray-900 px-2 py-0.5 rounded-full text-xs">
-                  2
+                  {getAssignmentCount('assignment')}
                 </span>
               </button>
               <button
@@ -412,7 +454,7 @@ ${session?.user?.name || 'Your Tutor'}`);
               >
                 Quizzes
                 <span className="ml-2 bg-gray-100 text-gray-900 px-2 py-0.5 rounded-full text-xs">
-                  0
+                  {getAssignmentCount('quiz')}
                 </span>
               </button>
               <button
@@ -425,7 +467,7 @@ ${session?.user?.name || 'Your Tutor'}`);
               >
                 Exams
                 <span className="ml-2 bg-gray-100 text-gray-900 px-2 py-0.5 rounded-full text-xs">
-                  0
+                  {getAssignmentCount('exam')}
                 </span>
               </button>
             </nav>
@@ -890,7 +932,7 @@ ${session?.user?.name || 'Your Tutor'}`);
                   <button
                     type="button"
                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
-                    onClick={handleConfirmSendEmail}
+                    onClick={() => handleConfirmSendEmail()}
                   >
                     Send Emails
                   </button>

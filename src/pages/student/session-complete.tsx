@@ -10,8 +10,15 @@ export default function SessionCompletePage() {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          // Close the window after countdown reaches 0
-          window.close();
+          // Try different methods to close the window
+          if (window.opener) {
+            // If opened by another window
+            window.close();
+          } else {
+            // If it's the only window, redirect to a blank page
+            window.location.href = 'about:blank';
+            window.close();
+          }
           return 0;
         }
         return prev - 1;
@@ -20,6 +27,15 @@ export default function SessionCompletePage() {
 
     return () => clearInterval(timer);
   }, []);
+
+  const handleClose = () => {
+    if (window.opener) {
+      window.close();
+    } else {
+      window.location.href = 'about:blank';
+      window.close();
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -61,7 +77,7 @@ export default function SessionCompletePage() {
                 This window will close automatically in {countdown} seconds.
               </p>
               <button
-                onClick={() => window.close()}
+                onClick={handleClose}
                 className="mt-4 inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Close Now
